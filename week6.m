@@ -8,14 +8,11 @@ IP = '172.19.232.102';
 % pb = PiBot(IP);
 
 if ~exist('pb')
-
     pb = PiBot(IP);
-   
 end
- pb.connectToLocaliser('172.19.232.12');
 
-load 'map.dat';
- 
+pb.connectToLocaliser('172.19.232.12');
+
  
  
 %% Get image 
@@ -26,33 +23,39 @@ load 'map.dat';
 %% Move Robot + Encoders
 %Forward 2sec
 
-
-
-first = 0;
-last = 0;
-distance = 0;
 robotRadius = 0.15;
-robotRadiusInd = round(0.15/1.96*49);
+imageSideDim = 500;
+robotRadiusInd = round(0.15/1.96*imageSideDim);
 robotRadiusElem = ones(robotRadiusInd);
-dilatedMap = idilate(map, robotRadiusElem);
 
 posepos = [0, 0, 0];
 history = [];
 origin = pb.getPoseFromLocaliser();
 lineHold = [origin(1), origin(2)];
-goal = [round((((1+0.6)/2)) *49) ,round((((1+-0.8)/2)) *49)];
-start = [round((((1+origin(1))/2)) *49) ,round((((1+origin(2))/2)) *49)];
-distanceTran = distancexform(dilatedMap, goal);
 
+startIndices = coordToIndex(reshape(origin(1:2), 1, []));
 
-[nonDriveableRows, nonDriveableCols] = find(map == 1);
+image = fliplr(flipud(pb.getImageFromLocaliser()));
+[obstacleMap, goalIndices] = DoCV(image);
+dilatedMap = idilate(obstacleMap, robotRadiusElem);
+
+% dx = DXform(obstacleMap);
+% dx.plan(goalIndices);
+% dx.query(start);
+
+distanceTran = distancexform(dilatedMap, fliplr(goalIndices));
+
+% for display purposes
+[nonDriveableRows, nonDriveableCols] = find(obstacleMap == 1);
 nonDriveable = indexToCoord([nonDriveableRows, nonDriveableCols]);
-[nonDriveableRows, nonDriveableCols] = find(dilatedMap == 1 & ~(map == 1));
+[nonDriveableRows, nonDriveableCols] = find(dilatedMap == 1 & ~(dilatedMap == 1));
 nonDriveableDilated = indexToCoord([nonDriveableRows, nonDriveableCols]);
+%%%%%%%%%%%%%%%%%5
 
+path = findPath(distanceTran, startIndices, goalIndices);
+path = indexToCoord(path);
+% path(2) = path(2) * -1;
 
-path = findPath(distanceTran, start, goal);
-path = ((path / 49) * 1.96) - 1;
 goalXs = path(:,1);
 goalYs = path(:,2);
 pathSize = size(path);
