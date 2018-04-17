@@ -22,7 +22,7 @@ pb.connectToLocaliser('172.19.232.12');
 
 %% Move Robot + Encoders
 %Forward 2sec
-
+   `
 robotRadius = 0.15;
 imageSideDim = 500;
 robotRadiusInd = round(0.15/1.96*imageSideDim);
@@ -78,7 +78,7 @@ while (1)
     y = posepos(2);
     th = posepos(3) / 180 * pi;
     
-    distances = sqrt((goalXs - x).^2 + (goalYs - y).^2);
+    distances = sqrt();
     distanceToEnd = distances(length(distances));
     
     [~, indices] = sort(distances);

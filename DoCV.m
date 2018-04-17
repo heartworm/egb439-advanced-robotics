@@ -29,7 +29,7 @@ function [obstacle_map, goal_location] = DoCV(image)
     
 %     moments_goal = imoments(im_b_goal_eroded);
 
-    goal_location = round([blob_goal.vc, blob_goal.uc]);
+    goal_location = round([blob_goal.uc, blob_goal.vc]);
     
     obstacle_map = ~im_b_grass;
 

@@ -1,5 +1,5 @@
 clear; clc; close all;
-image = load("img.mat");
+image = load('img.mat');
 image = image.img;
 
 % dispaly image
