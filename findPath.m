@@ -1,10 +1,8 @@
-function path = findPath(map, start, goal)
+function path = findPath(distance_transform, start, goal)
 %UNTITLED2 Summary of this function goes here
 %   Detailed explanation goes here
 
     start = fliplr(start);
-
-    distance_transform = distanceTransform(map, goal);
     distance_transform = padarray(distance_transform, [1,1], inf);
     
     goal = fliplr(goal);

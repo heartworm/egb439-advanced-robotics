@@ -31,45 +31,32 @@ load 'map.dat';
 first = 0;
 last = 0;
 distance = 0;
-radius = 2;
+robotRadius = 0.15;
+robotRadiusInd = round(0.15/1.96*49);
+robotRadiusElem = ones(robotRadiusInd);
+dilatedMap = idilate(map, robotRadiusElem);
+
 posepos = [0, 0, 0];
 history = [];
 origin = pb.getPoseFromLocaliser();
 lineHold = [origin(1), origin(2)];
+goal = [round((((1+0.6)/2)) *49) ,round((((1+-0.8)/2)) *49)];
+start = [round((((1+origin(1))/2)) *49) ,round((((1+origin(2))/2)) *49)];
+distanceTran = distancexform(dilatedMap, goal);
 
-goalX = round((1-((1+0.6)/2)) *49);
-goalY = round((1-((1+-0.8)/2)) *49);
-distanceTran = distancexform(map, [goalX,goalY]);
 
-originX = round((1-((1+origin(1))/2)) *49);
-originY = round((1-((1+origin(2))/2)) *49);
+[nonDriveableRows, nonDriveableCols] = find(map == 1);
+nonDriveable = indexToCoord([nonDriveableRows, nonDriveableCols]);
+[nonDriveableRows, nonDriveableCols] = find(dilatedMap == 1 & ~(map == 1));
+nonDriveableDilated = indexToCoord([nonDriveableRows, nonDriveableCols]);
 
-current = [originX, originY];
 
-goalXs = originX;
-goalYs = originY;
-
-while(distanceTran(current(1), current(2)) ~= 0)
-    shortest = distanceTran(current(1), current(2));
-    shortestX = current(1); shortestY = current(2);
-    for i = -1:1
-        for j = -1:1
-            if distanceTran((shortestX(1)+i), shortestY(2)+j) < shortest
-                shortest = distanceTran((shortestX(1)+i), shortestY(2)+j);
-                shortestX = (shortestX(1)+i);
-                shortestY = (shortestY(2)+j);
-            end
-        end
-    end
-    current = [shortestX, shortestY];
-    goalXs = [goalXs; shortestX];
-    goalYs = [goalYs; shortestY];
-    
-end
-
-goalXs = 1-((1-(goalXs ./ 49))./2);
-goalYs = 1-((1-(goalYs ./ 49))./2);
-
+path = findPath(distanceTran, start, goal);
+path = ((path / 49) * 1.96) - 1;
+goalXs = path(:,1);
+goalYs = path(:,2);
+pathSize = size(path);
+pathLength = pathSize(1);
 
 figure 
 hold on
@@ -89,19 +76,20 @@ while (1)
     th = posepos(3) / 180 * pi;
     
     distances = sqrt((goalXs - x).^2 + (goalYs - y).^2);
-    
+    distanceToEnd = distances(length(distances));
     
     [~, indices] = sort(distances);
     indices = indices((indices - goalIndex) < maxJump);
     
+    if distanceToEnd < 0.1
+        break;
+    end
     
     disp(indices);
     
     newGoalIndex = indices(1) + followDist;
-    
-    if newGoalIndex > goalIndex
-        goalIndex = mod(newGoalIndex - 1, length(goalXs)) + 1;
-    end
+        
+    goalIndex = min(newGoalIndex, pathLength);
     
     disp(goalIndex);
     
@@ -111,10 +99,14 @@ while (1)
     %plotting
     cla;
     plot(goalXs, goalYs, 'r--');
-    plot(goalX, goalY, 'pentagram   ');
-    plot(originX, originY);
+    plot(0.6, -0.8, 'pentagram');
+    plot(goalX, goalY, 'o');
+    plot(nonDriveable(:,1), nonDriveable(:,2), 'bo');
+    plot(nonDriveableDilated(:,1), nonDriveableDilated(:,2), 'ko');
+    plot(origin(1), origin(2), 'yo');
     plot_vehicle([x,y,th]);
     %end
+    
     
     
     lineHold = [lineHold; x, y];
