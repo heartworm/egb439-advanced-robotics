@@ -31,7 +31,7 @@ function [obstacle_map, goal_location] = DoCV(image)
 
     goal_location = round([blob_goal.uc, blob_goal.vc]);
     
-    obstacle_map = ~im_b_grass;
+    obstacle_map = ~im_b_grass * 1; 
 
 end
 

@@ -88,6 +88,8 @@ classdef Robot < handle
             plot_vehicle(self.getLatestPose());
         end    
         
+        
+        
     end
     
 end

@@ -1,12 +1,17 @@
-function path = findPath(distance_transform, start, goal)
+function pathUV = findPath(distance_transform, startUV, goalUV)
 %UNTITLED2 Summary of this function goes here
 %   Detailed explanation goes here
 
+    height = size(distance_transform,2);
+    
     distance_transform = padarray(distance_transform, [1,1], inf);    
     
-%     goal = fliplr(goal);
-    history = [start];
+    start = fliplr(startUV);
+    goal = fliplr(goalUV);
+    
     location = start;
+    history = start;
+    
     while ~isequal(location, goal)
         disp(location);
         row = location(1);
@@ -26,7 +31,7 @@ function path = findPath(distance_transform, start, goal)
         history = [history; location];
     end
     
-    path = history;
+    pathUV = fliplr(history);
     
 end
 
