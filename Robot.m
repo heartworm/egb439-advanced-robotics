@@ -20,14 +20,12 @@ classdef Robot < handle
         function angles = updateMotorAngles(self)
             angles = deg2rad(self.pb.getMotorTicks());
             angles = fliplr(reshape(angles, 1, []));
-            angles = abs(angles) * -1; %assume forward, clockwise motion
             self.motorAnglesHistory = [self.motorAnglesHistory; angles];
         end
         
         function ticks = getLatestMotorAngles(self)
             ticks = self.motorAnglesHistory(end, :);
         end
-        
         
         function pose = updatePose(self)
             lastPose = self.getLatestPose();
@@ -38,7 +36,7 @@ classdef Robot < handle
  
             WHEEL_RADIUS = 0.065 / 2;
             dAngles = newAngles - lastAngles;
-            wheelSpeeds = abs(dAngles * WHEEL_RADIUS);
+            wheelSpeeds = dAngles * WHEEL_RADIUS;
             
             WHEEL_SPAN_RADIUS = 0.25 / 2;
             speed = mean(wheelSpeeds); 
@@ -46,7 +44,7 @@ classdef Robot < handle
             dx = speed * cos(th);
             dy = speed * sin(th);
             
-            dPose = [dx, dy, dTh]
+            dPose = [dx, dy, dTh];
             pose = lastPose + dPose;    
             self.history = [self.history; pose];
         end
@@ -60,6 +58,10 @@ classdef Robot < handle
         function image = updateFieldImage(self)
             image = rot90(self.pb.getImageFromLocaliser(), 2);
             self.fieldImage = image;
+        end
+        
+        function image = updateImage(self)
+            image = fliplr(rot90(self.pb.getImageFromCamera()));
         end
         
         function stop(self)

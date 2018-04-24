@@ -10,6 +10,7 @@ const.DIM_ROBOT_CELL = round(const.DIM_ROBOT / const.DIM_FIELD * const.DIM_IMAGE
 %% Real Values
 robot = Robot();
 robot.setup(const.IP_ROBOT, const.IP_LOCALISER);
+robot.pb.setMotorSpeeds(20,10);
 
 %% Test Values 
 %  origin = [0,0];
