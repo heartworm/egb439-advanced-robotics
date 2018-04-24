@@ -3,21 +3,51 @@ classdef Robot < handle
     %   Detailed explanation goes here
     
     properties
-        history = [];
+        history = [0,0,0];
         pb;
         fieldImage;
         lastPathPoint = 1;
+        motorAnglesHistory = [];
     end
     
     methods
         function setup(self, ip, localiserIp)
             self.pb = PiBot(ip);
-            self.pb.connectToLocaliser(localiserIp);
+%             self.pb.connectToLocaliser(localiserIp);
+            self.updateMotorAngles();
         end
         
+        function angles = updateMotorAngles(self)
+            angles = deg2rad(self.pb.getMotorTicks());
+            angles = fliplr(reshape(angles, 1, []));
+            angles = abs(angles) * -1; %assume forward, clockwise motion
+            self.motorAnglesHistory = [self.motorAnglesHistory; angles];
+        end
+        
+        function ticks = getLatestMotorAngles(self)
+            ticks = self.motorAnglesHistory(end, :);
+        end
+        
+        
         function pose = updatePose(self)
-            pose = reshape(self.pb.getPoseFromLocaliser(), 1, []);
-            pose(3) = pose(3) / 180 * pi;
+            lastPose = self.getLatestPose();
+            lastAngles = self.getLatestMotorAngles();
+            newAngles = self.updateMotorAngles();
+            
+            th = lastPose(3);
+ 
+            WHEEL_RADIUS = 0.065 / 2;
+            dAngles = newAngles - lastAngles;
+            wheelSpeeds = abs(dAngles * WHEEL_RADIUS);
+            
+            WHEEL_SPAN_RADIUS = 0.25 / 2;
+            speed = mean(wheelSpeeds); 
+            dTh = (wheelSpeeds(2) - wheelSpeeds(1)) / WHEEL_SPAN_RADIUS;
+            dx = speed * cos(th);
+            dy = speed * sin(th);
+            
+            dPose = [dx, dy, dTh]
+            pose = lastPose + dPose;    
             self.history = [self.history; pose];
         end
         
