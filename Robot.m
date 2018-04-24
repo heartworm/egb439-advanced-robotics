@@ -6,8 +6,7 @@ classdef Robot < handle
         history = [];
         pb;
         fieldImage;
-        lastPathPoint;
-        lastPath;
+        lastPathPoint = 1;
     end
     
     methods
@@ -18,6 +17,7 @@ classdef Robot < handle
         
         function pose = updatePose(self)
             pose = reshape(self.pb.getPoseFromLocaliser(), 1, []);
+            pose(3) = pose(3) / 180 * pi;
             self.history = [self.history; pose];
         end
         
@@ -36,18 +36,29 @@ classdef Robot < handle
             self.pb.stop();
         end
         
-        function distanceToEnd = setMotionOnPath(self, path)
-            followJump = 5;
+        function [pursuitIndex, distanceToEnd] = setMotionOnPath(self, path)
+            followJump = 100;
+            maxJump = 1000;
             
-            distances = sqrt(sum(path .^ 2, 2));
+            currentPose = self.getLatestPose();
+            vectorsToPath = path - currentPose(1:2);
+            
+            distances = sqrt(sum(vectorsToPath .^ 2, 2));
             distanceToEnd = distances(length(distances));
-            [~, distanceIndices] = sort(distances);
             
+            [~, distanceIndices] = sort(distances);
             % TODO: crossovers
             
             closestIndex = distanceIndices(1);
-            goalIndex = min(length(distances), closestIndex + followJump);
-            goalPoint = path(goalIndex);
+            distanceToClosest = distances(closestIndex)
+            minPursuitIndex = self.lastPathPoint;
+            maxPursuitIndex = min(self.lastPathPoint + maxJump, length(distances));
+            
+            followJump = followJump + round(distanceToClosest * 0)
+            
+            pursuitIndex = max(minPursuitIndex, min(maxPursuitIndex, closestIndex + followJump));
+            self.lastPathPoint = pursuitIndex;
+            goalPoint = path(pursuitIndex, :);
             self.setMotionToPose(goalPoint);
         end
         
@@ -58,25 +69,30 @@ classdef Robot < handle
             p = reshape(p, 1, []);
             latestPose = self.getLatestPose();
             
-            displacement = latestPose(1:2) - p;
+            displacement = p - latestPose(1:2);
             angleToPoint = atan2(displacement(2), displacement(1));
             distToPoint = norm(displacement);
             steering = angdiff(latestPose(3), angleToPoint) / pi;
+            steeringGain = 0.9;
+            speedGain = 200;
             
-            steeringGain = 1.5;
-            speedGain = 40;
+            steering = min(1, max(-1, steering * steeringGain));
             
-            self.setMotion(speedGain * distToPoint, ...
+            speed = 70;
+%             speed = 40;
+
+            self.setMotion(speed, ...
                            steeringGain * steering);
         end
         
-        function setMotion(speed, steering)
+        function setMotion(self, speed, steering)
             % Speed from -100 to 100 and steering from -1 to 1
-            speed = max(-100, min(100, speed));
+%             speed = max(-50, min(50, speed));
             steering = max(-1, min(1, steering));
             
-            leftWheel = speed * (1 + steering);
-            rightWheel = speed * (1 - steering);
+            leftWheel = max(-100, min(100, speed * (1 + steering)));
+            rightWheel = max(-100, min(100, speed * (1 - steering)));
+            
             self.pb.setMotorSpeeds(round(leftWheel), round(rightWheel));
         end
         

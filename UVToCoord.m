@@ -1,5 +1,5 @@
 function [ coord ] = UVToCoord(uv, maxIndex, maxCoord)
-    assert(size(cell,2) == 2, 'Coordinates not two columns wide');
+    assert(size(uv,2) == 2, 'Coordinates not two columns wide');
     
     cell = uv;
     cell(:,2) = maxIndex - cell(:,2);
