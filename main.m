@@ -23,4 +23,9 @@ axis([-1 1 -1 1]);
 while(1)
     pose = robot.updatePose();
     plot_vehicle(pose);
+    distToGoal = robot.setMotionToPose([0.5,-0.25]);
+    if distToGoal < 0.1
+        break;
+    end
 end
+robot.stop();

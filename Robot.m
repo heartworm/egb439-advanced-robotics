@@ -94,7 +94,7 @@ classdef Robot < handle
             self.setMotionToPose(goalPoint);
         end
         
-        function setMotionToPose(self, p)
+        function distToPoint = setMotionToPose(self, p)
             % TODO: goal angle
             assert(length(p) == 2, 'length of point is not 2');
             
@@ -105,13 +105,14 @@ classdef Robot < handle
             angleToPoint = atan2(displacement(2), displacement(1));
             distToPoint = norm(displacement);
             steering = angdiff(latestPose(3), angleToPoint) / pi;
-            steeringGain = 0.9;
+            steeringGain = 1;
             speedGain = 200;
             
             steering = min(1, max(-1, steering * steeringGain));
             
-            speed = 70;
 %             speed = 40;
+
+            speed = round(distToPoint * speedGain);
 
             self.setMotion(speed, ...
                            steeringGain * steering);
@@ -121,11 +122,12 @@ classdef Robot < handle
             % Speed from -100 to 100 and steering from -1 to 1
 %             speed = max(-50, min(50, speed));
             steering = max(-1, min(1, steering));
+            speed = max(-100, min(100, speed));
             
             leftWheel = max(-100, min(100, speed * (1 + steering)));
             rightWheel = max(-100, min(100, speed * (1 - steering)));
             
-            self.pb.setMotorSpeeds(round(leftWheel), round(rightWheel));
+            self.pb.setMotorSpeeds(round(rightWheel), round(leftWheel));
         end
         
         function plotHistory(self)  

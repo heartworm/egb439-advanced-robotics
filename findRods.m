@@ -1,4 +1,5 @@
 function [rods] = findRods(image)   
+    idisp(image);
     image_size = size(image);
     im_sum = sum(image, 3);
     im_g = max(image, [], 3);
@@ -7,7 +8,6 @@ function [rods] = findRods(image)
     im_c(:,:,1) = image(:,:,1) ./ im_sum;
     im_c(:,:,2) = image(:,:,2) ./ im_sum;
     im_c(:,:,3) = image(:,:,3) ./ im_sum;
-    idisp(im_c);
     
     im_thresh_yellow = createMaskYellow(im_c);
     im_thresh_red = createMaskRed(im_c);
@@ -18,7 +18,7 @@ function [rods] = findRods(image)
     RED = 1;
     
     im_thresh = im_thresh_yellow * YELLOW + im_thresh_blue * BLUE + im_thresh_red * RED;
-    blobs = iblobs(im_thresh, 'area', [100, inf]);
+    blobs = iblobs(im_thresh, 'area', [50, inf]);
     blobs = blobs(blobs.class ~= 0);
     
     blobs_yellow = blobs(blobs.class == YELLOW);
@@ -52,8 +52,11 @@ function [rods] = findRods(image)
         
         rod.code = bin2dec(reshape(dec2bin(sorted_vc_ind)', 1, []));
         
-        tl = [min(rod.blobs.uc), min(rod.blobs.vc)];
-        br = [max(rod.blobs.uc), max(rod.blobs.vc)];
+        boxes = rod.blobs.box';
+        
+        
+        tl = min(boxes);
+        br = max(boxes);
         
         rod.uc = mean(rod.blobs.uc);
         rod.vc = mean(rod.blobs.vc);
@@ -68,11 +71,17 @@ function [rods] = findRods(image)
 
         rod.range = ROD_HEIGHT_IRL / tan(rod_height_angle);
         
-        
-        
         rod.bearing = ((image_size(2) / 2) - rod.uc) ...
                           / image_size(2) ...
                           * CAMERA_FOV(1);
+                      
+                      
+        
+        line([tl(1), tl(1), br(1), br(1), tl(1)], ...
+             [tl(2), br(2), br(2), tl(2), tl(2)]);
+         
+        text(tl(1), tl(2), sprintf('Code: %d\nRange (m): %.2f\nBearing (deg): %.2f', ...
+                                   rod.code, rod.range, rad2deg(rod.bearing)));
         
         rods = [rods, rod];
     end
