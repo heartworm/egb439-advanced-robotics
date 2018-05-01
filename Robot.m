@@ -14,11 +14,14 @@ classdef Robot < handle
         function setup(self, ip, localiserIp)
             self.pb = PiBot(ip);
 %             self.pb.connectToLocaliser(localiserIp);
+            self.pb.reset();
             self.updateMotorAngles();
+            
         end
         
         function angles = updateMotorAngles(self)
-            angles = deg2rad(self.pb.getMotorTicks());
+            TICKS_PER_RADIAN = 60.467105263157900;
+            angles = self.pb.getMotorEncoders() / TICKS_PER_RADIAN;
             angles = fliplr(reshape(angles, 1, []));
             self.motorAnglesHistory = [self.motorAnglesHistory; angles];
         end
@@ -38,9 +41,10 @@ classdef Robot < handle
             dAngles = newAngles - lastAngles;
             wheelSpeeds = dAngles * WHEEL_RADIUS;
             
-            WHEEL_SPAN_RADIUS = 0.25 / 2;
+            WHEEL_SPAN_RADIUS = 0.152;
             speed = mean(wheelSpeeds); 
             dTh = (wheelSpeeds(2) - wheelSpeeds(1)) / WHEEL_SPAN_RADIUS;
+%             disp(rad2deg(dTh));
             dx = speed * cos(th);
             dy = speed * sin(th);
             
@@ -106,7 +110,7 @@ classdef Robot < handle
             distToPoint = norm(displacement);
             steering = angdiff(latestPose(3), angleToPoint) / pi;
             steeringGain = 1;
-            speedGain = 200;
+            speedGain = 100;
             
             steering = min(1, max(-1, steering * steeringGain));
             
@@ -138,8 +142,21 @@ classdef Robot < handle
             plot_vehicle(self.getLatestPose());
         end    
         
-        
-        
+        function plotLatestFrame(self)
+            length = 0.1;
+            pose = self.getLatestPose();
+            
+            to_coord = @(mat) mat(1:2, 3)';
+            
+            transform = transl2(pose(1), pose(2)); 
+            centre = transl2(pose(1), pose(2)) * trot2(pose(3));
+            front = centre * transl2(length, 0);
+            left = centre * transl2(0, length);
+            x_line = [to_coord(centre); to_coord(front)];
+            y_line = [to_coord(centre); to_coord(left)];
+            line(x_line(:,1), x_line(:,2), 'Color', 'red');
+            line(y_line(:,1), y_line(:,2), 'Color', 'green');
+        end
     end
     
 end

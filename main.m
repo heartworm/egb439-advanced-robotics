@@ -10,7 +10,7 @@ const.DIM_ROBOT_CELL = round(const.DIM_ROBOT / const.DIM_FIELD * const.DIM_IMAGE
 %% Real Values
 robot = Robot();
 robot.setup(const.IP_ROBOT, const.IP_LOCALISER);
-robot.pb.setMotorSpeeds(20,10);
+goal = [-0.6, 0.4];
 
 %% Test Values 
 %  origin = [0,0];
@@ -18,14 +18,24 @@ robot.pb.setMotorSpeeds(20,10);
 % image = image.img;
 
 %% Motion
+
 figure();
+hold on;
+axis equal;
 axis([-1 1 -1 1]);
+grid minor;
+plot(goal(1), goal(2), 'pentagram');
 while(1)
     pose = robot.updatePose();
-    plot_vehicle(pose);
-    distToGoal = robot.setMotionToPose([0.5,-0.25]);
+    robot.plotLatestFrame();
+    pause(0.001);
+    distToGoal = robot.setMotionToPose(goal);
     if distToGoal < 0.1
         break;
     end
 end
+
+figure();
+rods = findRods(robot.updateImage())
+
 robot.stop();
