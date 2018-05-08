@@ -1,19 +1,19 @@
 function [rods] = findRods(image, poseTrans)
     image_size = size(image);
     
-    im_c = colourIntensity(image);
+%     im_c = colourIntensity(image);
     
-    im_thresh_yellow = createMaskYellow(im_c);
-    im_thresh_red = createMaskRed(im_c);
-    im_thresh_blue = createMaskBlue(im_c);
+    im_thresh_yellow = ierode(idilate(createMaskYellowIm(image), ones(9)), ones(9));
+    im_thresh_red = ierode(idilate(createMaskRed(image), ones(9)), ones(9));
+    im_thresh_blue = ierode(idilate(createMaskBlue(image), ones(9)), ones(9));
     
     YELLOW = 3;
     BLUE = 2;
     RED = 1;
-    
+        
     im_thresh = im_thresh_yellow * YELLOW + im_thresh_blue * BLUE + im_thresh_red * RED;
     blobs = iblobs(im_thresh, 'area', [50, inf]);
-    blobs = blobs(blobs.class ~= 0);
+    blobs = blobs(blobs.class ~= 0 & blobs.aspect > 0.5);
     
     blobs_yellow = blobs(blobs.class == YELLOW);
     blobs_red = blobs(blobs.class == RED);
@@ -80,14 +80,17 @@ function [rods] = findRods(image, poseTrans)
                 rod.x = rodTrans(1,3);
                 rod.y = rodTrans(2,3);
 
-                rods = [rods, rod];
+                max_blob_width = max(rod.blobs.umax - rod.blobs.umin);
                 
+                if rod.width < max_blob_width * 1.25 && rod.width * rod.height < 8000
+                    rods = [rods, rod]; 
+                end     
             end
         end
     end
     
-    [~, clustered_rod_inds] = sort([rods.width]);
-    best_rod_inds = clustered_rod_inds(1:num_rods);
-    rods = rods(best_rod_inds);
+%     [~, clustered_rod_inds] = sort([rods.width]);
+%     best_rod_inds = clustered_rod_inds(1:num_rods);
+%     rods = rods(best_rod_inds);
     
 end

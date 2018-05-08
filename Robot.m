@@ -7,6 +7,7 @@ classdef Robot < handle
         pb;
         fieldImage;
         image;
+        imageHistory = {};
         lastPathPoint = 1;
         motorAnglesHistory = [];
         rodsHistory = {};
@@ -67,12 +68,12 @@ classdef Robot < handle
         end
         
         function image = updateImage(self)
-            self.image = fliplr(rot90(self.pb.getImageFromCamera()));
-            image = self.image;
+            image = fliplr(rot90(self.pb.getImageFromCamera()));
+            self.imageHistory{end + 1} = image;
         end
         
         function image = getLatestImage(self)
-            image = self.image;
+            image = self.imageHistory{end};
         end
         
         function rods = updateRods(self)
@@ -83,7 +84,7 @@ classdef Robot < handle
         end
         
         function drawImage(self)
-            idisp(self.image);
+            idisp(self.getLatestImage());
         end
         
         function stop(self)

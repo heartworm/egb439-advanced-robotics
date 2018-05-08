@@ -8,6 +8,7 @@ const.DIM_FIELD = 1.96;
 const.DIM_ROBOT_CELL = round(const.DIM_ROBOT / const.DIM_FIELD * const.DIM_IMAGE);
 
 %% Real Values
+
 robot = Robot();
 robot.setup(const.IP_ROBOT, const.IP_LOCALISER);
 
@@ -35,7 +36,7 @@ while(1)
     robot.drawRods();
     
     pause(0.001);
-    robot.setMotion(20,-0.5);
+    robot.setMotion(40,-0.25);
     pause(0.5); 
     robot.stop();
     pause(0.5);
