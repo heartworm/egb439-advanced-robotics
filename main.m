@@ -10,32 +10,36 @@ const.DIM_ROBOT_CELL = round(const.DIM_ROBOT / const.DIM_FIELD * const.DIM_IMAGE
 %% Real Values
 robot = Robot();
 robot.setup(const.IP_ROBOT, const.IP_LOCALISER);
-goal = [-0.6, 0.4];
 
-%% Test Values 
-%  origin = [0,0];
-% image = load('img.mat');
-% image = image.img;
-
-%% Motion
-
-figure();
+%% Visualisation
+figVideo = figure();
+figGraph = figure();
 hold on;
 axis equal;
 axis([-1 1 -1 1]);
 grid minor;
-plot(goal(1), goal(2), 'pentagram');
+% plot(goal(1), goal(2), 'pentagram');
+
+%% Motion
 while(1)
     pose = robot.updatePose();
+    robot.updateImage();
+    rods = robot.updateRods();
+    
+    figure(figGraph);
     robot.plotLatestFrame();
+    plot([rods.x], [rods.y], 'r*');
+    
+    figure(figVideo);
+    robot.drawImage();
+    robot.drawRods();
+    
     pause(0.001);
-    distToGoal = robot.setMotionToPose(goal);
-    if distToGoal < 0.1
-        break;
-    end
+    robot.setMotion(20,-0.5);
+    pause(0.5); 
+    robot.stop();
+    pause(0.5);
 end
 
-figure();
-rods = findRods(robot.updateImage())
-
+%% Release
 robot.stop();

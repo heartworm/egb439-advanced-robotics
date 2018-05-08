@@ -6,8 +6,10 @@ classdef Robot < handle
         history = [0,0,0];
         pb;
         fieldImage;
+        image;
         lastPathPoint = 1;
         motorAnglesHistory = [];
+        rodsHistory = {};
     end
     
     methods
@@ -65,11 +67,46 @@ classdef Robot < handle
         end
         
         function image = updateImage(self)
-            image = fliplr(rot90(self.pb.getImageFromCamera()));
+            self.image = fliplr(rot90(self.pb.getImageFromCamera()));
+            image = self.image;
+        end
+        
+        function image = getLatestImage(self)
+            image = self.image;
+        end
+        
+        function rods = updateRods(self)
+            pose = self.getLatestPose();
+            poseTrans = transl2(pose(1), pose(2)) * trot2(pose(3));
+            rods = findRods(self.getLatestImage(), poseTrans);
+            self.rodsHistory{end + 1} = rods;
+        end
+        
+        function drawImage(self)
+            idisp(self.image);
         end
         
         function stop(self)
             self.pb.stop();
+        end
+        
+        function drawRods(self)
+            rods = self.rodsHistory{end};
+            for i = 1:length(rods)
+                rod = rods(i);
+                tl = rod.box(1,:);
+                br = rod.box(2,:);
+                line([tl(1), tl(1), br(1), br(1), tl(1)], ...
+                     [tl(2), br(2), br(2), tl(2), tl(2)]);
+
+                text(tl(1), tl(2), sprintf('Code: %d\nRange (m): %.2f\nBearing (deg): %.2f', ...
+                                           rod.code, rod.range, rad2deg(rod.bearing)));
+            end
+        end
+        
+        function plotRods(self)
+            rods = cell2mat(self.rodsHistory);
+            plot([rods.x], [rods.y]);
         end
         
         function [pursuitIndex, distanceToEnd] = setMotionOnPath(self, path)
