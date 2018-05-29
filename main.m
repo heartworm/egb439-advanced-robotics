@@ -18,21 +18,26 @@ hold on;
 axis equal;
 axis([-1 1 -1 1]);
 grid minor;
+robot.pb.setMotorSpeeds(1,1);
 % plot(goal(1), goal(2), 'pentagram');
 
 %% Motion
 while(1)
-    pose = robot.updatePose();
+    robot.updateMotorAngles();
     robot.updateImage();
-    rods = robot.updateRods();
-    
-    figure(figGraph);
-    robot.plotLatestFrame();
-    plot([rods.x], [rods.y], 'r*');
+    robot.updateRods();
     
     figure(figVideo);
     robot.drawImage();
     robot.drawRods();
+    
+    robot.predictStep();
+    robot.updateStep();
+   
+    figure(figGraph);
+    cla;
+    robot.plotLatestFrame();
+    robot.plotLatestRods();
     
     pause(0.001);
     robot.setMotion(40,-0.25);

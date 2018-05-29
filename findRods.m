@@ -49,7 +49,7 @@ function [rods] = findRods(image, poseTrans)
                 [~, sorted_vc_ind] = sort(rod.blobs.vc);
                 sorted_vc_ind = fliplr(sorted_vc_ind);
 
-                rod.code = bin2dec(reshape(dec2bin(sorted_vc_ind)', 1, []));
+                rod.code = int2str(bin2dec(reshape(dec2bin(sorted_vc_ind)', 1, [])));
 
                 boxes = rod.blobs.box';
                 tl = min(boxes);

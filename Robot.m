@@ -6,8 +6,8 @@ classdef Robot < handle
         NOISE_ODOM = eye(2);
         NOISE_CAMERA = eye(2);
         
-        ekfSigma = [];
-        ekfMu = [];
+        ekfSigma = eye(3);
+        ekfMu = zeros(3,1);
         rodIndexes = containers.Map;
         history = [0,0,0];
         pb;
@@ -33,7 +33,7 @@ classdef Robot < handle
             for i = 1:length(rods)
                 rod = rods(i);
                 % if we haven't seen the rod
-                if ~self.rodIndexes.isKey(rod.bearing) 
+                if ~self.rodIndexes.isKey(rod.code) 
                     self.addRod(rod);
                     continue;
                 end
@@ -41,7 +41,7 @@ classdef Robot < handle
                 %otherwise
                 ind = self.rodIndexes(rod.code);
                 x = mu(1:3);
-                xRod = self.mu(ind:ind+1);
+                xRod = self.ekfMu(ind:ind+1);
 
                 delta = [xRod(1) - x(1)
                          xRod(2) - x(2)];
@@ -65,7 +65,7 @@ classdef Robot < handle
                 
                 K = self.ekfSigma * G' * inv(G * self.ekfSigma * G' + Q);
                 innovation = z - h;
-                innovation(2) = wrapToPi(innovation(2);
+                innovation(2) = wrapToPi(innovation(2));
                 
                 self.ekfMu = self.ekfMu + K*innovation;
                 I = eye(size(self.ekfSigma));
@@ -96,13 +96,34 @@ classdef Robot < handle
             sigmaDim = length(self.ekfSigma);
             covarDim = length(covar);
             self.ekfSigma = [self.ekfSigma,     zeros(sigmaDim, covarDim)
-                             zeros(covarDim, sigmaDim)  covar];
-            
+                             zeros(covarDim, sigmaDim)  covar];           
         end
         
         function predictStep(self)
             [d, dTh] = self.getLatestOdometry();
+            xt = self.ekfMu(1:3);
             
+            model = @(xt, d, dth) [xt(1) + d * cos(xt(3))
+                                   xt(2) + d * sin(xt(3))
+                                   wrapToPi(xt(3) + dth)];
+
+            
+            jacobianX = [1 0 d * -sin(xt(3))
+                         0 1 d * cos(xt(3))
+                         0 0 1];
+            
+            jacobianOdom = [cos(xt(3)) 0 
+                            sin(xt(3)) 0
+                            0          1];
+                        
+            jx = eye(length(self.ekfMu));
+            jo = zeros(length(self.ekfMu), 2);
+            
+            jx(1:3,1:3) = jacobianX;
+            jo(1:3, :)  = jacobianOdom;
+            
+            self.ekfSigma = jx * self.ekfSigma * jx' + jo * self.NOISE_ODOM * jo';
+            self.ekfMu(1:3) = model(xt, d, dTh);
         end
         
         function angles = updateMotorAngles(self)
@@ -130,9 +151,7 @@ classdef Robot < handle
         end
         
         function pose = getLatestPose(self)
-            assert(size(self.history, 1) > 0, 'There are no positions in history');
-            lastRowIndex = size(self.history, 1);
-            pose = self.history(lastRowIndex, :);
+            pose = self.ekfMu(1:3)';
         end
         
         function image = updateImage(self)
@@ -155,8 +174,6 @@ classdef Robot < handle
             rods = self.rodsHistory{end};
         end
 
-        
-        
         function drawImage(self)
             idisp(self.getLatestImage());
         end
@@ -254,6 +271,16 @@ classdef Robot < handle
             plot_vehicle(self.getLatestPose());
         end    
         
+        function plotLatestRods(self)
+            codes = self.rodIndexes.keys();
+            for i = 1:length(codes)
+                code = codes{i};
+                rodIndex = self.rodIndexes(code);
+                rodPosition = self.ekfMu(rodIndex:rodIndex+1);
+                plot(rodPosition(1), rodPosition(2), 'r*');
+            end
+        end
+        
         function plotLatestFrame(self)
             length = 0.1;
             pose = self.getLatestPose();
@@ -268,6 +295,9 @@ classdef Robot < handle
             y_line = [to_coord(centre); to_coord(left)];
             line(x_line(:,1), x_line(:,2), 'Color', 'red');
             line(y_line(:,1), y_line(:,2), 'Color', 'green');
+            
+            
+            plotCovariance(self.ekfMu(1:3), self.ekfSigma, 3);
         end
     end
     
