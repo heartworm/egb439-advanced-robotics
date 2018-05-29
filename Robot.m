@@ -3,6 +3,12 @@ classdef Robot < handle
     %   Detailed explanation goes here
     
     properties
+        NOISE_ODOM = eye(2);
+        NOISE_CAMERA = eye(2);
+        
+        ekfSigma = [];
+        ekfMu = [];
+        rodIndexes = containers.Map;
         history = [0,0,0];
         pb;
         fieldImage;
@@ -14,11 +20,88 @@ classdef Robot < handle
     end
     
     methods
-        function setup(self, ip, localiserIp)
+        function setup(self, ip)
             self.pb = PiBot(ip);
-%             self.pb.connectToLocaliser(localiserIp);
             self.pb.reset();
             self.updateMotorAngles();
+        end
+        
+        function updateStep(self)
+            
+            rods = self.getLatestRods();
+            
+            for i = 1:length(rods)
+                rod = rods(i);
+                % if we haven't seen the rod
+                if ~self.rodIndexes.isKey(rod.bearing) 
+                    self.addRod(rod);
+                    continue;
+                end
+
+                %otherwise
+                ind = self.rodIndexes(rod.code);
+                x = mu(1:3);
+                xRod = self.mu(ind:ind+1);
+
+                delta = [xRod(1) - x(1)
+                         xRod(2) - x(2)];
+
+                range = norm(delta);
+                bearing = wrapToPi(atan2(delta(2), delta(1)) - x(3));
+
+                h = [range
+                     bearing];
+
+                z = [rod.range
+                     rod.bearing];
+                
+                G = zeros(2, length(mu));
+                GMap = [delta(1)/range, delta(2)/range
+                     -delta(2)/(range^2), delta(1)/(range^2)];
+                GRobot = [-GMap [0;-1]];
+                
+                G(:, ind:ind+1) = GMap;
+                G(:, 1:3) = GRobot;
+                
+                K = self.ekfSigma * G' * inv(G * self.ekfSigma * G' + Q);
+                innovation = z - h;
+                innovation(2) = wrapToPi(innovation(2);
+                
+                self.ekfMu = self.ekfMu + K*innovation;
+                I = eye(size(self.ekfSigma));
+                self.ekfSigma = (I - K*G) * self.ekfSigma; 
+            end
+        end
+        
+        function addRod(self, rod)
+            %rod shouldn't already exist.
+            assert(~self.rodIndexes.isKey(rod.code));
+            
+            pos = self.ekfMu(1:3);
+            range = rod.range;
+            bearing = rod.bearing;
+            ang = wrapToPi(pos(3) + bearing);
+            
+            ind = length(self.ekfMu) + 1;
+            self.rodIndexes(rod.code) = ind;
+            
+            self.ekfMu = [self.ekfMu
+                          pos(1) + range * cos(ang)
+                          pos(2) + range * sin(ang)];
+              
+            jacobianMu = [cos(ang), -range*sin(ang)
+                          sin(ang), range*cos(ang)];
+            
+            covar = jacobianMu * self.NOISE_CAMERA * jacobianMu';
+            sigmaDim = length(self.ekfSigma);
+            covarDim = length(covar);
+            self.ekfSigma = [self.ekfSigma,     zeros(sigmaDim, covarDim)
+                             zeros(covarDim, sigmaDim)  covar];
+            
+        end
+        
+        function predictStep(self)
+            [d, dTh] = self.getLatestOdometry();
             
         end
         
@@ -33,38 +116,23 @@ classdef Robot < handle
             ticks = self.motorAnglesHistory(end, :);
         end
         
-        function pose = updatePose(self)
-            lastPose = self.getLatestPose();
+        function [d, dTh] = getLatestOdometry(self)
             lastAngles = self.getLatestMotorAngles();
             newAngles = self.updateMotorAngles();
-            
-            th = lastPose(3);
  
             WHEEL_RADIUS = 0.065 / 2;
             dAngles = newAngles - lastAngles;
             wheelSpeeds = dAngles * WHEEL_RADIUS;
             
             WHEEL_SPAN_RADIUS = 0.152;
-            speed = mean(wheelSpeeds); 
+            d = mean(wheelSpeeds); 
             dTh = (wheelSpeeds(2) - wheelSpeeds(1)) / WHEEL_SPAN_RADIUS;
-%             disp(rad2deg(dTh));
-            dx = speed * cos(th);
-            dy = speed * sin(th);
-            
-            dPose = [dx, dy, dTh];
-            pose = lastPose + dPose;    
-            self.history = [self.history; pose];
         end
         
         function pose = getLatestPose(self)
             assert(size(self.history, 1) > 0, 'There are no positions in history');
             lastRowIndex = size(self.history, 1);
             pose = self.history(lastRowIndex, :);
-        end
-        
-        function image = updateFieldImage(self)
-            image = rot90(self.pb.getImageFromLocaliser(), 2);
-            self.fieldImage = image;
         end
         
         function image = updateImage(self)
@@ -82,6 +150,12 @@ classdef Robot < handle
             rods = findRods(self.getLatestImage(), poseTrans);
             self.rodsHistory{end + 1} = rods;
         end
+        
+        function rods = getLatestRods(self)
+            rods = self.rodsHistory{end};
+        end
+
+        
         
         function drawImage(self)
             idisp(self.getLatestImage());
