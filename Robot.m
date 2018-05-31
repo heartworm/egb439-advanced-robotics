@@ -3,10 +3,11 @@ classdef Robot < handle
     %   Detailed explanation goes here
     
     properties
-        NOISE_ODOM = eye(2)*0.1;
-        NOISE_CAMERA = eye(2)*0.1;
+        NOISE_ODOM = eye(2)*0.001;
+        NOISE_CAMERA = [0.02, 0
+                        0, 0.0001];
         
-        ekfSigma = eye(3);
+        ekfSigma = eye(3) * 0.0001;
         ekfMu = zeros(3,1);
         rodIndexes = containers.Map();
         history = [0,0,0];
@@ -31,6 +32,39 @@ classdef Robot < handle
         
         function updateLocalisationStep(self, map)
             rods = self.getLatestRods();
+            
+            for i = 1:length(rods)
+                rod = rods(i);
+                
+                mapInd = find(map(3,:) == str2double(rod.code));
+                xRod = map(1:2, mapInd);
+                
+                x = self.ekfMu;
+
+                delta = [xRod(1) - x(1)
+                         xRod(2) - x(2)];
+
+                range = norm(delta);
+                bearing = wrapToPi(atan2(delta(2), delta(1)) - x(3));
+
+                h = [range
+                     bearing];
+
+                z = [rod.range
+                     rod.bearing];
+                
+                GMap = [delta(1)/range, delta(2)/range
+                     -delta(2)/(range^2), delta(1)/(range^2)];
+                G = [-GMap [0;-1]];
+                
+                K = self.ekfSigma * G' * inv(G * self.ekfSigma * G' + self.NOISE_CAMERA);
+                innovation = z - h;
+                innovation(2) = wrapToPi(innovation(2));
+                
+                self.ekfMu = self.ekfMu + K*innovation;
+                I = eye(size(self.ekfSigma));
+                self.ekfSigma = (I - K*G) * self.ekfSigma; 
+            end 
         end
         
         function updateStep(self)
@@ -262,15 +296,15 @@ classdef Robot < handle
             angleToPoint = atan2(displacement(2), displacement(1));
             distToPoint = norm(displacement);
             steering = angdiff(latestPose(3), angleToPoint) / pi;
-            steeringGain = 1;
-            speedGain = 100;
+            steeringGain = 1.25;
+            speedGain = 40;
             
-            steering = min(1, max(-1, steering * steeringGain));
-            
-%             speed = 40;
+            steering = min(1, max(-1, steering * steeringGain));            
 
             speed = round(distToPoint * speedGain);
 
+            speed = max(20, speed);
+            
             self.setMotion(speed, ...
                            steeringGain * steering);
         end

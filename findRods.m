@@ -3,9 +3,9 @@ function [rods] = findRods(image, poseTrans)
     
 %     im_c = colourIntensity(image);
     
-    im_thresh_yellow = ierode(idilate(createMaskYellowIm(image), ones(9)), ones(9));
-    im_thresh_red = ierode(idilate(createMaskRed(image), ones(9)), ones(9));
-    im_thresh_blue = ierode(idilate(createMaskBlue(image), ones(9)), ones(9));
+    im_thresh_yellow = ierode(idilate(createMaskYellow905(image), ones(9)), ones(9));
+    im_thresh_red = ierode(idilate(createMaskRed905(image), ones(9)), ones(9));
+    im_thresh_blue = ierode(idilate(createMaskBlue905(image), ones(9)), ones(9));
     
     YELLOW = 3;
     BLUE = 2;
@@ -63,7 +63,7 @@ function [rods] = findRods(image, poseTrans)
                 rod.width = br(1) - tl(1);
 
                 rod_dims = rod.box(2,:) - rod.box(1,:);
-                ROD_HEIGHT_IRL = 0.155;
+                ROD_HEIGHT_IRL = 0.175;
                 CAMERA_FOV = deg2rad([62.2, 48.8]);
 
                 rod_height_proportion = rod_dims(2) / size(image, 1);
