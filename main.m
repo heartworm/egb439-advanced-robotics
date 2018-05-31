@@ -10,7 +10,7 @@ const.DIM_ROBOT_CELL = round(const.DIM_ROBOT / const.DIM_FIELD * const.DIM_IMAGE
 load module4_prac1.mat;
 unload1(3) = wrapToPi(deg2rad(unload1(3)));
 unload2(3) = wrapToPi(deg2rad(unload2(3) + 15));
-unload1(1:2) = unload1(1:2) + [-0.1; 0.02];
+unload1(1:2) = unload1(1:2) + [-0.1; 0];
 unload2(1:2) = unload2(1:2) + [-0.1; -0.02];
 % goals = [unload1, unload2];
 goals = [unload1, [-0.25;0.25;wrapToPi(3*pi/2)], unload2];
@@ -18,8 +18,8 @@ robot = Robot();
 robot.setup(const.IP_ROBOT);
 
 %% Visualisation
-figVideo = figure('OuterPosition', [100,100,500,500]);
-figGraph = figure('OuterPosition', [600,100,500,500]);
+figVideo = figure('OuterPosition', [50,100,750,750]);
+figGraph = figure('OuterPosition', [800,100,750,750]);
 hold on;
 axis equal;
 axis([-1 1 -1 1]);
