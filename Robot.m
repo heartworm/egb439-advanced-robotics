@@ -3,19 +3,20 @@ classdef Robot < handle
     %   Detailed explanation goes here
     
     properties
-        NOISE_ODOM = eye(2);
-        NOISE_CAMERA = eye(2);
+        NOISE_ODOM = eye(2)*0.1;
+        NOISE_CAMERA = eye(2)*0.1;
         
         ekfSigma = eye(3);
         ekfMu = zeros(3,1);
-        rodIndexes = containers.Map;
+        rodIndexes = containers.Map();
         history = [0,0,0];
         pb;
         fieldImage;
         image;
         imageHistory = {};
         lastPathPoint = 1;
-        motorAnglesHistory = [];
+        motorAnglesHistory = [0, 0];
+        odometryHistory = [];
         rodsHistory = {};
     end
     
@@ -24,6 +25,12 @@ classdef Robot < handle
             self.pb = PiBot(ip);
             self.pb.reset();
             self.updateMotorAngles();
+            self.updateOdometry();
+            self.rodIndexes = containers.Map();
+        end
+        
+        function updateLocalisationStep(self, map)
+            rods = self.getLatestRods();
         end
         
         function updateStep(self)
@@ -40,7 +47,7 @@ classdef Robot < handle
 
                 %otherwise
                 ind = self.rodIndexes(rod.code);
-                x = mu(1:3);
+                x = self.ekfMu(1:3);
                 xRod = self.ekfMu(ind:ind+1);
 
                 delta = [xRod(1) - x(1)
@@ -55,7 +62,7 @@ classdef Robot < handle
                 z = [rod.range
                      rod.bearing];
                 
-                G = zeros(2, length(mu));
+                G = zeros(2, length(self.ekfMu));
                 GMap = [delta(1)/range, delta(2)/range
                      -delta(2)/(range^2), delta(1)/(range^2)];
                 GRobot = [-GMap [0;-1]];
@@ -63,7 +70,7 @@ classdef Robot < handle
                 G(:, ind:ind+1) = GMap;
                 G(:, 1:3) = GRobot;
                 
-                K = self.ekfSigma * G' * inv(G * self.ekfSigma * G' + Q);
+                K = self.ekfSigma * G' * inv(G * self.ekfSigma * G' + self.NOISE_CAMERA);
                 innovation = z - h;
                 innovation(2) = wrapToPi(innovation(2));
                 
@@ -100,7 +107,9 @@ classdef Robot < handle
         end
         
         function predictStep(self)
-            [d, dTh] = self.getLatestOdometry();
+            odometry = self.getLatestOdometry();
+            d = odometry(1);
+            dTh = odometry(2);
             xt = self.ekfMu(1:3);
             
             model = @(xt, d, dth) [xt(1) + d * cos(xt(3))
@@ -137,9 +146,9 @@ classdef Robot < handle
             ticks = self.motorAnglesHistory(end, :);
         end
         
-        function [d, dTh] = getLatestOdometry(self)
-            lastAngles = self.getLatestMotorAngles();
-            newAngles = self.updateMotorAngles();
+        function odometry = updateOdometry(self)
+            lastAngles = self.motorAnglesHistory(end-1, :);
+            newAngles = self.getLatestMotorAngles();
  
             WHEEL_RADIUS = 0.065 / 2;
             dAngles = newAngles - lastAngles;
@@ -148,6 +157,21 @@ classdef Robot < handle
             WHEEL_SPAN_RADIUS = 0.152;
             d = mean(wheelSpeeds); 
             dTh = (wheelSpeeds(2) - wheelSpeeds(1)) / WHEEL_SPAN_RADIUS;
+            
+            odometry = [d, dTh];
+            
+            self.odometryHistory = [
+                self.odometryHistory;
+                odometry
+            ];
+        end
+        
+        function odometer = getOdometer(self)
+            odometer = sum(self.odometryHistory(:,1));
+        end
+        
+        function odometry = getLatestOdometry(self)
+            odometry = self.odometryHistory(end, :);
         end
         
         function pose = getLatestPose(self)
@@ -191,7 +215,7 @@ classdef Robot < handle
                 line([tl(1), tl(1), br(1), br(1), tl(1)], ...
                      [tl(2), br(2), br(2), tl(2), tl(2)]);
 
-                text(tl(1), tl(2), sprintf('Code: %d\nRange (m): %.2f\nBearing (deg): %.2f', ...
+                text(tl(1), tl(2), sprintf('Code: %s\nRange (m): %.2f\nBearing (deg): %.2f', ...
                                            rod.code, rod.range, rad2deg(rod.bearing)));
             end
         end
@@ -278,6 +302,9 @@ classdef Robot < handle
                 rodIndex = self.rodIndexes(code);
                 rodPosition = self.ekfMu(rodIndex:rodIndex+1);
                 plot(rodPosition(1), rodPosition(2), 'r*');
+                
+                covar = self.ekfSigma(rodIndex:rodIndex+1, rodIndex:rodIndex+1);
+                error_ellipse(covar, rodPosition);
             end
         end
         
@@ -296,8 +323,8 @@ classdef Robot < handle
             line(x_line(:,1), x_line(:,2), 'Color', 'red');
             line(y_line(:,1), y_line(:,2), 'Color', 'green');
             
-            
-            plotCovariance(self.ekfMu(1:3), self.ekfSigma, 3);
+            covar = self.ekfSigma(1:2,1:2);
+            error_ellipse(covar, self.ekfMu(1:2));
         end
     end
     

@@ -1,6 +1,6 @@
 %% Constants
 clear; close all; clc;
-const.IP_ROBOT = '172.19.232.102';
+const.IP_ROBOT = '172.19.232.173';
 const.DIM_ROBOT = 0.15;
 const.DIM_IMAGE = 500;
 const.DIM_FIELD = 1.96;
@@ -18,32 +18,39 @@ hold on;
 axis equal;
 axis([-1 1 -1 1]);
 grid minor;
-robot.pb.setMotorSpeeds(1,1);
 % plot(goal(1), goal(2), 'pentagram');
 
 %% Motion
 while(1)
-    robot.updateMotorAngles();
     robot.updateImage();
     robot.updateRods();
+    robot.updateStep();
     
     figure(figVideo);
     robot.drawImage();
     robot.drawRods();
     
-    robot.predictStep();
-    robot.updateStep();
-   
     figure(figGraph);
     cla;
     robot.plotLatestFrame();
     robot.plotLatestRods();
+
+    startOdo = robot.getOdometer();
+    while robot.getOdometer() < startOdo + 0.1
+        robot.updateMotorAngles();
+        robot.updateOdometry();
+        robot.predictStep();
+        robot.setMotion(20, -0.5);
+        disp(robot.getOdometer());
+        
+        figure(figGraph);
+        cla;
+        robot.plotLatestFrame();
+        robot.plotLatestRods();
+    end
     
-    pause(0.001);
-    robot.setMotion(40,-0.25);
-    pause(0.5); 
     robot.stop();
-    pause(0.5);
+    pause(0.25);
 end
 
 %% Release
