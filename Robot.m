@@ -4,8 +4,8 @@ classdef Robot < handle
     
     properties
         NOISE_ODOM = eye(2)*0.001;
-        NOISE_CAMERA = [0.02, 0
-                        0, 0.0001];
+        NOISE_CAMERA = [0.01, 0;
+                        0,    0.0001;]
         
         ekfSigma = eye(3) * 0.0001;
         ekfMu = zeros(3,1);
@@ -260,8 +260,8 @@ classdef Robot < handle
         end
         
         function [pursuitIndex, distanceToEnd] = setMotionOnPath(self, path)
-            followJump = 100;
-            maxJump = 1000;
+            followJump = 20;
+            maxJump = 20;
             
             currentPose = self.getLatestPose();
             vectorsToPath = path - currentPose(1:2);
@@ -269,16 +269,18 @@ classdef Robot < handle
             distances = sqrt(sum(vectorsToPath .^ 2, 2));
             distanceToEnd = distances(length(distances));
             
-            [~, distanceIndices] = sort(distances);
-            % TODO: crossovers
             
-            closestIndex = distanceIndices(1);
-            distanceToClosest = distances(closestIndex)
             minPursuitIndex = self.lastPathPoint;
             maxPursuitIndex = min(self.lastPathPoint + maxJump, length(distances));
             
-            followJump = followJump + round(distanceToClosest * 0)
             
+            [~, closestIndices] = sort(distances);
+            
+            closestIndices = closestIndices(closestIndices < maxPursuitIndex);
+            
+            % TODO: crossovers
+            
+            closestIndex = closestIndices(1);
             pursuitIndex = max(minPursuitIndex, min(maxPursuitIndex, closestIndex + followJump));
             self.lastPathPoint = pursuitIndex;
             goalPoint = path(pursuitIndex, :);
